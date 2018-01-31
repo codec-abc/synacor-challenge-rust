@@ -1,19 +1,23 @@
+#[derive(Debug)]
 pub struct SetRegister
 {
     register : u16,
     value : u16,
 }
 
+#[derive(Debug)]
 pub struct Push
 {
     value : u16,
 }
 
+#[derive(Debug)]
 pub struct Pop
 {
     value : u16,
 }
 
+#[derive(Debug)]
 pub struct IsEqual
 {
     cell_result : u16,
@@ -21,6 +25,7 @@ pub struct IsEqual
     second_operand : u16,
 }
 
+#[derive(Debug)]
 pub struct IsGreaterThan
 {
     cell_result : u16,
@@ -28,23 +33,27 @@ pub struct IsGreaterThan
     second_operand : u16,
 }
 
+#[derive(Debug)]
 pub struct Jump
 {
     value : u16,
 }
 
+#[derive(Debug)]
 pub struct JumpNotZero
 {
     value: u16,
     jump_location : u16,
 }
 
+#[derive(Debug)]
 pub struct JumpZero
 {
     value: u16,
     jump_location : u16,
 }
 
+#[derive(Debug)]
 pub struct Add
 {
     cell_result : u16,
@@ -52,6 +61,7 @@ pub struct Add
     second_operand : u16,
 }
 
+#[derive(Debug)]
 pub struct Multiply
 {
     cell_result : u16,
@@ -59,6 +69,7 @@ pub struct Multiply
     second_operand : u16,
 }
 
+#[derive(Debug)]
 pub struct Modulo
 {
     cell_result : u16,
@@ -66,6 +77,7 @@ pub struct Modulo
     second_operand : u16,
 }
 
+#[derive(Debug)]
 pub struct And
 {
     cell_result : u16,
@@ -73,6 +85,7 @@ pub struct And
     second_operand : u16,
 }
 
+#[derive(Debug)]
 pub struct Or
 {
     cell_result : u16,
@@ -80,39 +93,46 @@ pub struct Or
     second_operand : u16,
 }
 
+#[derive(Debug)]
 pub struct Not
 {
     cell_result : u16,
     operand : u16,
 }
 
+#[derive(Debug)]
 pub struct ReadMemory
 {
     memory_address_to_read : u16,
     cell_result : u16,
 }
 
+#[derive(Debug)]
 pub struct WriteMemory
 {
     value : u16,
     memory_address_to_write_to : u16,
 }
 
+#[derive(Debug)]
 pub struct Call
 {
     value : u16,
 }
 
+#[derive(Debug)]
 pub struct Out
 {
     value : u16,
 }
 
+#[derive(Debug)]
 pub struct In
 {
     value : u16,
 }
 
+#[derive(Debug)]
 pub enum OpCode
 {
     Halt,
@@ -139,7 +159,8 @@ pub enum OpCode
     Noop,
 }
 
-enum ReadOpCodeFailure
+#[derive(Debug)]
+pub enum ReadOpCodeFailure
 {
     NotEnoughMemory,
     InvalidMemoryAddress,
@@ -147,7 +168,7 @@ enum ReadOpCodeFailure
     InvalidOperandValue
 }
 
-fn read_memory_to_op_code(mem : &[u16], offset : u16) -> 
+pub fn read_memory_to_op_code(mem : &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
     let first_op_code_result = mem.get(offset as usize);

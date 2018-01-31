@@ -4,6 +4,7 @@ mod vm;
 use std::fs::File;
 use std::io::Read;
 use std::io::Cursor;
+use std::io;
 extern crate byteorder;
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -22,7 +23,36 @@ fn main()
                 Err(e) => println!("File appear to be invalid: {:?}", e),
                 Ok(mem) =>
                 {
-                    let vm = vm::VM::new(mem);
+                    let mut vm = vm::VM::new(mem);
+                    let mut result = vm.step();
+                    let mut should_continue = true;
+                    let mut input = String::new();
+
+                    
+                    while should_continue && !result.is_err()
+                    {
+                        println!("Type q or quit to exit:");
+                        io::stdin().read_line(&mut input).unwrap();
+                        let input_with_line_ending = input.to_lowercase();
+                        let word = input_with_line_ending.trim_right();
+
+                        should_continue = 
+                            should_continue &&
+                            word != "q" &&
+                            word != "quit";
+
+                        if !should_continue
+                        {
+                            continue;
+                        }
+                        
+                        result = vm.step();
+                    }
+                    if result.is_err()
+                    {
+                        let err = result.unwrap_err();
+                        println!("{:?}", err);
+                    }
                 }
             }
         },

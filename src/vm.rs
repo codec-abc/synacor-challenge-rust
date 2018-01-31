@@ -1,3 +1,5 @@
+use opcode;
+
 pub struct VM
 {
     memory : Vec<u16>,

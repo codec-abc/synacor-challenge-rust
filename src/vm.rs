@@ -1,26 +1,3 @@
-enum ParsedNumber
-{
-    LiteralValue(u16),
-    Register(u16),
-    InvalidNumber,
-}
-
-fn check_number(number: u16) -> ParsedNumber
-{
-    if number < 32767
-    {
-        ParsedNumber::LiteralValue(number)
-    }
-    else if number <= 32775
-    {
-        ParsedNumber::Register(number - 32768)
-    }
-    else
-    {
-        ParsedNumber::InvalidNumber
-    }
-}
-
 pub struct VM
 {
     memory : Vec<u16>,

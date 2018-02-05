@@ -384,7 +384,7 @@ fn handle_jump_case(mem : &[u8], offset : u16) ->
     {
         return Err(ReadOpCodeFailure::InvalidOperandValue);
     }
-    let jump = Jump {value : value * 2};
+    let jump = Jump {value : value};
     Ok(OpCode::Jump(jump))
 }
 
@@ -408,7 +408,7 @@ fn handle_jump_not_zero_case(mem : &[u8], offset : u16) ->
     {
         return Err(ReadOpCodeFailure::InvalidOperandValue);
     }
-    let jump_not_zero = JumpNotZero {value : value, jump_location : jump_location * 2 };
+    let jump_not_zero = JumpNotZero {value : value, jump_location : jump_location};
     Ok(OpCode::JumpNotZero(jump_not_zero))
 }
 
@@ -432,7 +432,7 @@ fn handle_jump_zero_case(mem : &[u8], offset : u16) ->
     {
         return Err(ReadOpCodeFailure::InvalidOperandValue);
     }
-    let jump_zero = JumpZero {value : value, jump_location : jump_location * 2 };
+    let jump_zero = JumpZero {value : value, jump_location : jump_location};
     Ok(OpCode::JumpZero(jump_zero))
 }
 
@@ -831,13 +831,13 @@ impl ParsedNumber
 
 pub fn check_number(number: u16) -> ParsedNumber
 {
-    if number < 32767
+    if number < 32767u16
     {
         ParsedNumber::LiteralValue(number)
     }
-    else if number <= 32775
+    else if number <= 32775u16
     {
-        ParsedNumber::Register(number - 32768)
+        ParsedNumber::Register(number - 32768u16)
     }
     else
     {

@@ -7,7 +7,8 @@ pub struct VM
     memory : Vec<u8>,
     register : [u8; 8],
     stack : Vec<u16>,
-    program_counter : u16
+    program_counter : u16,
+    print_debug : bool
 }
 
 #[derive(Debug)]
@@ -15,6 +16,7 @@ pub enum RunFailure
 {
     NotImplemented,
     OpCodeParseFailure(opcode::ReadOpCodeFailure),
+    InvalidValue,
 }
 
 impl VM
@@ -26,7 +28,8 @@ impl VM
             memory : memory_,
             register : [0; 8], 
             stack : vec!(),
-            program_counter : 0
+            program_counter : 0,
+            print_debug : false,
         }
     }
 
@@ -40,9 +43,11 @@ impl VM
                 self.program_counter
             );
 
-        //println!("current op code {:?}", op_code_result);
-        //println!("current program counter 0x{}", format!("{:X}", self.program_counter));
-
+        if self.print_debug
+        {
+            println!("current op code {:?}", op_code_result);
+            println!("current program counter 0x{}", format!("{:X}", self.program_counter));
+        }
         match op_code_result
         {
             Err(e) => Err(RunFailure::OpCodeParseFailure(e)),
@@ -53,7 +58,10 @@ impl VM
     pub fn handle_op_code(&mut self, op_code : opcode::OpCode) ->
         Result<(), RunFailure>
     {
-        //println!("{:?}", op_code);
+        if self.print_debug
+        {
+            println!("{:?}", op_code);
+        }
         match op_code
         {
             OpCode::Out(out) => self.handle_out(out),
@@ -74,36 +82,79 @@ impl VM
 
     fn handle_jump(&mut self, jump : opcode::Jump) -> Result<(), RunFailure>
     {
-        self.program_counter = jump.value;
+        self.program_counter = jump.value * 2;
         Ok(())
     }
 
     fn handle_jump_not_zero(&mut self, jump_not_zero : opcode::JumpNotZero) -> 
         Result<(), RunFailure>
     {
-        if jump_not_zero.value == 0 
+        let actual_value = check_number(jump_not_zero.value);
+        match actual_value 
         {
-            self.program_counter = self.program_counter + 6;
+            ParsedNumber::InvalidNumber => Err(RunFailure::InvalidValue),
+            ParsedNumber::LiteralValue(val) =>
+            {
+                if jump_not_zero.value == 0 
+                {
+                    self.program_counter = self.program_counter + 6;
+                }
+                else
+                {
+                    self.program_counter = jump_not_zero.jump_location * 2;
+                }
+                Ok(())
+            },
+            ParsedNumber::Register(r) =>
+            {
+                let register_value = self.register[r as usize];
+                if register_value == 0 
+                {
+                    self.program_counter = self.program_counter + 6;
+                }
+                else
+                {
+                    self.program_counter = jump_not_zero.jump_location * 2;
+                }
+                Ok(())
+            },
         }
-        else
-        {
-            self.program_counter = jump_not_zero.jump_location;
-        }
-        Ok(())
+
     }
 
     fn handle_jump_zero(&mut self, jump_zero : opcode::JumpZero) -> 
         Result<(), RunFailure>
     {
-        if jump_zero.value != 0 
+        let actual_value = check_number(jump_zero.value);
+        match actual_value 
         {
-            self.program_counter = self.program_counter + 6;
+            ParsedNumber::InvalidNumber => Err(RunFailure::InvalidValue),
+            ParsedNumber::LiteralValue(val) =>
+            {
+                if jump_zero.value != 0 
+                {
+                    self.program_counter = self.program_counter + 6;
+                }
+                else
+                {
+                    self.program_counter = jump_zero.jump_location * 2;
+                }
+                Ok(())
+            },
+            ParsedNumber::Register(r) =>
+            {
+                let register_value = self.register[r as usize];
+                if register_value != 0 
+                {
+                    self.program_counter = self.program_counter + 6;
+                }
+                else
+                {
+                    self.program_counter = jump_zero.jump_location * 2;
+                }
+                Ok(())
+            },
         }
-        else
-        {
-            self.program_counter = jump_zero.jump_location;
-        }
-        Ok(())
     }
 
     fn handle_noop(&mut self) -> Result<(), RunFailure>

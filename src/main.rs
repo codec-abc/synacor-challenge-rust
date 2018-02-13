@@ -18,7 +18,6 @@ fn main()
         Ok(content) => 
         {
             let mem_result = convert_to_u16_le(&content);
-            //let mem_result : Result<Vec<u8>,()> = Ok(content);
             match mem_result 
             {
                 Err(e) => println!("File appear to be invalid: {:?}", e),
@@ -31,16 +30,6 @@ fn main()
 
                     while should_continue && !result.is_err()
                     {
-                        //println!("Type q or quit to exit:");
-                        // io::stdin().read_line(&mut input).unwrap();
-                        // let input_with_line_ending = input.to_lowercase();
-                        // let word = input_with_line_ending.trim_right();
-
-                        // should_continue = 
-                        //     should_continue &&
-                        //     word != "q" &&
-                        //     word != "quit";
-
                         if !should_continue
                         {
                             continue;

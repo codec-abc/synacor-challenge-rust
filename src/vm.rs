@@ -48,18 +48,6 @@ impl VM
             self.register[7],
         );
 
-        // println!
-        // (   "[{}, {}, {}, {}, {}, {}, {}, {}]", 
-        //     format!("0x{:X}", self.register[0]),
-        //     format!("0x{:X}", self.register[1]),
-        //     format!("0x{:X}", self.register[2]),
-        //     format!("0x{:X}", self.register[3]),
-        //     format!("0x{:X}", self.register[4]),
-        //     format!("0x{:X}", self.register[5]),
-        //     format!("0x{:X}", self.register[6]),
-        //     format!("0x{:X}", self.register[7]),
-        // );
-
         print!("[");
         let mut is_first = true;
         for val in &self.stack
@@ -75,22 +63,6 @@ impl VM
             }
         }
         println!("]");
-
-        // print!("[");
-        // is_first = true;
-        // for val in &self.stack
-        // {
-        //     if !is_first
-        //     {
-        //         print!(", {}", format!("0x{:X}", val));
-        //     }
-        //     else
-        //     {
-        //         print!("{}", format!("0x{:X}", val));
-        //         is_first = false;
-        //     }
-        // }
-        // println!("]");
 
         println!("current op code {:?}", op_code_result);
     }
@@ -168,7 +140,7 @@ impl VM
     {
         if self.print_debug
         {
-            //println!("{:?}", op_code);
+            println!("{:?}", op_code);
             println!("");
         }
         match op_code

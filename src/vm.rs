@@ -25,6 +25,76 @@ pub enum RunFailure
 
 impl VM
 {
+    fn print_debug(&self, op_code_result : &Result<opcode::OpCode, opcode::ReadOpCodeFailure>)
+    {
+        println!("step {}", self.step_nb);
+
+        println!
+        (
+            "current program counter {} in bytes 0x{}",
+            self.program_counter, 
+            format!("{:X}", self.program_counter * 2)
+        );
+
+        println!
+        (   "[{}, {}, {}, {}, {}, {}, {}, {}]", 
+            self.register[0],
+            self.register[1],
+            self.register[2],
+            self.register[3],
+            self.register[4],
+            self.register[5],
+            self.register[6],
+            self.register[7],
+        );
+
+        // println!
+        // (   "[{}, {}, {}, {}, {}, {}, {}, {}]", 
+        //     format!("0x{:X}", self.register[0]),
+        //     format!("0x{:X}", self.register[1]),
+        //     format!("0x{:X}", self.register[2]),
+        //     format!("0x{:X}", self.register[3]),
+        //     format!("0x{:X}", self.register[4]),
+        //     format!("0x{:X}", self.register[5]),
+        //     format!("0x{:X}", self.register[6]),
+        //     format!("0x{:X}", self.register[7]),
+        // );
+
+        print!("[");
+        let mut is_first = true;
+        for val in &self.stack
+        {
+            if !is_first
+            {
+                print!(", {}", val);
+            }
+            else
+            {
+                print!("{}", val);
+                is_first = false;
+            }
+        }
+        println!("]");
+
+        // print!("[");
+        // is_first = true;
+        // for val in &self.stack
+        // {
+        //     if !is_first
+        //     {
+        //         print!(", {}", format!("0x{:X}", val));
+        //     }
+        //     else
+        //     {
+        //         print!("{}", format!("0x{:X}", val));
+        //         is_first = false;
+        //     }
+        // }
+        // println!("]");
+
+        println!("current op code {:?}", op_code_result);
+    }
+
     pub fn new (memory_ : Vec<u16>) -> VM
     {
         VM 
@@ -34,7 +104,7 @@ impl VM
             stack : vec!(),
             program_counter : 0,
             step_nb : 0,
-            print_debug : true,
+            print_debug : false,
         }
     }
 
@@ -69,77 +139,21 @@ impl VM
 
         if self.print_debug
         {
-            println!("step {}", self.step_nb);
-
-            println!
-            (
-                "current program counter {} in bytes 0x{}",
-                self.program_counter, 
-                format!("{:X}", self.program_counter * 2)
-            );
-
-            println!
-            (   "[{}, {}, {}, {}, {}, {}, {}, {}]", 
-                self.register[0],
-                self.register[1],
-                self.register[2],
-                self.register[3],
-                self.register[4],
-                self.register[5],
-                self.register[6],
-                self.register[7],
-            );
-
-            // println!
-            // (   "[{}, {}, {}, {}, {}, {}, {}, {}]", 
-            //     format!("0x{:X}", self.register[0]),
-            //     format!("0x{:X}", self.register[1]),
-            //     format!("0x{:X}", self.register[2]),
-            //     format!("0x{:X}", self.register[3]),
-            //     format!("0x{:X}", self.register[4]),
-            //     format!("0x{:X}", self.register[5]),
-            //     format!("0x{:X}", self.register[6]),
-            //     format!("0x{:X}", self.register[7]),
-            // );
-
-            print!("[");
-            let mut is_first = true;
-            for val in &self.stack
-            {
-                if !is_first
-                {
-                    print!(", {}", val);
-                }
-                else
-                {
-                    print!("{}", val);
-                    is_first = false;
-                }
-            }
-            println!("]");
-
-            // print!("[");
-            // is_first = true;
-            // for val in &self.stack
-            // {
-            //     if !is_first
-            //     {
-            //         print!(", {}", format!("0x{:X}", val));
-            //     }
-            //     else
-            //     {
-            //         print!("{}", format!("0x{:X}", val));
-            //         is_first = false;
-            //     }
-            // }
-            // println!("]");
-
-            println!("current op code {:?}", op_code_result);
-
+            self.print_debug(&op_code_result);
         }
+
         match op_code_result
         {
-            Err(e) => Err(RunFailure::OpCodeParseFailure(e)),
+            Err(_) => self.print_debug(&op_code_result),
+            Ok(_) => (),
+        }
+
+        match op_code_result
+        {
+            Err(e) => 
+            {
+                Err(RunFailure::OpCodeParseFailure(e))
+            },
             Ok(op_code) => 
             {
                 let result = self.handle_op_code(op_code);
@@ -188,11 +202,13 @@ impl VM
         Result<(), RunFailure>
     {
         let actual_value = check_number(set_register.register);
+        let value_to_set = self.get_literal_value_or_register_value(set_register.value)?;
         match actual_value
         {
             ParsedNumber::Register(r) =>
             {
-                self.register[r as usize] = set_register.value;
+                assert!(check_number(value_to_set).is_literal_value());
+                self.register[r as usize] = value_to_set;
                 self.program_counter = self.program_counter + 3;
                 Ok(())
             },
@@ -203,6 +219,7 @@ impl VM
     fn handle_push(&mut self, push : opcode::Push) -> Result<(), RunFailure>
     {
         let val = self.get_literal_value_or_register_value(push.value)?;
+        assert!(check_number(val).is_literal_value());
         self.stack.push(val);
         self.program_counter = self.program_counter + 2;
         Ok(())
@@ -219,6 +236,7 @@ impl VM
                 ParsedNumber::Register(r) =>
                 {
                     self.program_counter = self.program_counter + 2;
+                    assert!(check_number(stack_value).is_literal_value());
                     self.register[r as usize] = stack_value;
                     Ok(())
                 },
@@ -235,6 +253,9 @@ impl VM
     {
         let b = self.get_literal_value_or_register_value(is_equal.first_operand)?;
         let c = self.get_literal_value_or_register_value(is_equal.second_operand)?;
+
+        assert!(check_number(b).is_literal_value());
+        assert!(check_number(c).is_literal_value());
 
         let actual_value = check_number(is_equal.cell_result);
         match actual_value
@@ -254,6 +275,9 @@ impl VM
         let b = self.get_literal_value_or_register_value(is_greater_than.first_operand)?;
         let c = self.get_literal_value_or_register_value(is_greater_than.second_operand)?;
 
+        assert!(check_number(b).is_literal_value());
+        assert!(check_number(c).is_literal_value());
+
         let actual_value = check_number(is_greater_than.cell_result);
         match actual_value
         {
@@ -269,6 +293,7 @@ impl VM
 
     fn handle_jump(&mut self, jump : opcode::Jump) -> Result<(), RunFailure>
     {
+        assert!(check_number(jump.value).is_literal_value());
         self.program_counter = jump.value;
         Ok(())
     }
@@ -277,6 +302,8 @@ impl VM
         Result<(), RunFailure>
     {
         let actual_value = self.get_literal_value_or_register_value(jump_not_zero.value)?;
+        assert!(check_number(actual_value).is_literal_value());
+
         if actual_value == 0 
         {
             self.program_counter = self.program_counter + 3;
@@ -292,6 +319,8 @@ impl VM
         Result<(), RunFailure>
     {
         let actual_value = self.get_literal_value_or_register_value(jump_zero.value)?;
+        assert!(check_number(actual_value).is_literal_value());
+
         if actual_value != 0 
         {
             self.program_counter = self.program_counter + 3;
@@ -316,7 +345,9 @@ impl VM
         {
             ParsedNumber::Register(r) =>
             {
-                self.register[r as usize] = (b + c) % 32768; // overflow ?
+                let result = (b + c) % 32768; // overflow ?
+                assert!(check_number(result).is_literal_value());
+                self.register[r as usize] = result;
                 self.program_counter = self.program_counter + 4;
                 Ok(())
             },
@@ -337,7 +368,9 @@ impl VM
         {
             ParsedNumber::Register(r) =>
             {
-                self.register[r as usize] = ((b * c) % 32768) as u16; // overflow ?
+                let result = ((b * c) % 32768) as u16; // overflow ?;
+                assert!(check_number(result).is_literal_value());
+                self.register[r as usize] = result;
                 self.program_counter = self.program_counter + 4;
                 Ok(())
             },
@@ -358,7 +391,9 @@ impl VM
         {
             ParsedNumber::Register(r) =>
             {
-                self.register[r as usize] = ((b % c) % 32768) as u16; // overflow ?
+                let result = ((b % c) % 32768) as u16; // overflow ?
+                assert!(check_number(result).is_literal_value());
+                self.register[r as usize] = result;
                 self.program_counter = self.program_counter + 4;
                 Ok(())
             },
@@ -379,7 +414,9 @@ impl VM
         {
             ParsedNumber::Register(r) =>
             {
-                self.register[r as usize] = b & c;
+                let result =  b & c;
+                assert!(check_number(result).is_literal_value());
+                self.register[r as usize] = result;
                 self.program_counter = self.program_counter + 4;
                 Ok(())
             },
@@ -400,7 +437,9 @@ impl VM
         {
             ParsedNumber::Register(r) =>
             {
-                self.register[r as usize] = b | c;
+                let result =  b | c;
+                assert!(check_number(result).is_literal_value());
+                self.register[r as usize] = result;
                 self.program_counter = self.program_counter + 4;
                 Ok(())
             },
@@ -419,7 +458,9 @@ impl VM
         {
             ParsedNumber::Register(r) =>
             {
-                self.register[r as usize] = (!val) & 0b0111_1111_1111_1111;
+                let result = (!val) & 0b0111_1111_1111_1111;
+                assert!(check_number(result).is_literal_value());
+                self.register[r as usize] = result;
                 self.program_counter = self.program_counter + 3;
                 Ok(())
             },
@@ -446,13 +487,16 @@ impl VM
                             panic!("Error in read memory implementation");
                         }
                         let value = self.memory[mem_address as usize];
+                        assert!(check_number(value).is_literal_value());
                         self.register[r_dest as usize] = value;
                         self.program_counter = self.program_counter + 3;
                         Ok(())
                     },
                     ParsedNumber::LiteralValue(val) =>
                     {
-                        self.register[r_dest as usize] = self.memory[val as usize] ;
+                        let value = self.memory[val as usize];
+                        assert!(check_number(value).is_literal_value());
+                        self.register[r_dest as usize] = value;
                         self.program_counter = self.program_counter + 3;
                         Ok(())
                     },
@@ -469,6 +513,7 @@ impl VM
     {
         let memory_address_to_write_to = check_number(write_memory.memory_address_to_write_to);
         let value_to_write = self.get_literal_value_or_register_value(write_memory.value)?;
+        assert!(check_number(value_to_write).is_literal_value());
         //print!("{}", (value_to_write as u8) as char);
         match memory_address_to_write_to
         {
@@ -485,7 +530,11 @@ impl VM
             },
             ParsedNumber::LiteralValue(val) =>
             {
-                self.memory[val as usize] = value_to_write ;
+                if !(check_number(self.memory[val as usize]).is_literal_value())
+                {
+                    panic!("Error in write memory implementation");
+                }
+                self.memory[val as usize] = value_to_write;
                 self.program_counter = self.program_counter + 3;
                 Ok(())
             },
@@ -497,6 +546,7 @@ impl VM
     {
         self.stack.push(self.program_counter + 2);
         let actual_value = self.get_literal_value_or_register_value(call.value)?;
+        assert!(check_number(actual_value).is_literal_value());
         self.program_counter = actual_value;
         Ok(())
     }
@@ -510,6 +560,7 @@ impl VM
         else
         {
             let return_address = self.stack.pop().unwrap();
+            assert!(check_number(return_address).is_literal_value());
             self.program_counter = return_address;
             Ok(())
         }
@@ -518,7 +569,9 @@ impl VM
     fn handle_out(&mut self, out : opcode::Out) -> Result<(), RunFailure>
     {
         self.program_counter = self.program_counter + 2;
-        print!("{}", (out.value as u8) as char);
+        let actual_value = self.get_literal_value_or_register_value(out.value)?;
+        assert!(check_number(actual_value).is_literal_value());
+        print!("{}", (actual_value as u8) as char);
         Ok(())
     }
 

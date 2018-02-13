@@ -759,7 +759,7 @@ fn handle_out_case(mem: &[u16], offset : u16) ->
         return Err(ReadOpCodeFailure::NotEnoughMemory);
     }
     let value = value_result.unwrap();
-    is_ok = check_number(value).is_literal_value();
+    is_ok = check_number(value).is_valid_number();
     if !is_ok
     {
         return Err(ReadOpCodeFailure::InvalidOperandValue);

@@ -385,7 +385,7 @@ fn handle_jump_case(mem : &[u16], offset : u16) ->
         return Err(ReadOpCodeFailure::NotEnoughMemory);
     }
     let value = value_result.unwrap();
-    is_ok = check_number(value).is_valid_number();
+    is_ok = check_number(value).is_literal_value();
     if !is_ok
     {
         return Err(ReadOpCodeFailure::InvalidOperandValue);
@@ -408,7 +408,7 @@ fn handle_jump_not_zero_case(mem : &[u16], offset : u16) ->
     let jump_location = jump_location_result.unwrap();
     is_ok = 
         check_number(value).is_valid_number() && 
-        check_number(jump_location).is_valid_number();
+        check_number(jump_location).is_literal_value();
     
     if !is_ok
     {
@@ -432,7 +432,7 @@ fn handle_jump_zero_case(mem: &[u16], offset : u16) ->
     let jump_location = jump_location_result.unwrap();
     is_ok = 
         check_number(value).is_valid_number() && 
-        check_number(jump_location).is_valid_number();
+        check_number(jump_location).is_literal_value();
     
     if !is_ok
     {
@@ -685,6 +685,7 @@ fn handle_read_memory_case(mem: &[u16], offset : u16) ->
     {
         return Err(ReadOpCodeFailure::InvalidOperandValue);
     }
+
     let read_memory = 
         ReadMemory 
         {
@@ -758,7 +759,7 @@ fn handle_out_case(mem: &[u16], offset : u16) ->
         return Err(ReadOpCodeFailure::NotEnoughMemory);
     }
     let value = value_result.unwrap();
-    is_ok = check_number(value).is_valid_number();
+    is_ok = check_number(value).is_literal_value();
     if !is_ok
     {
         return Err(ReadOpCodeFailure::InvalidOperandValue);
@@ -777,7 +778,7 @@ fn handle_in_case(mem: &[u16], offset : u16) ->
         return Err(ReadOpCodeFailure::NotEnoughMemory);
     }
     let value = value_result.unwrap();
-    is_ok = check_number(value).is_valid_number();
+    is_ok = check_number(value).is_register();
     if !is_ok
     {
         return Err(ReadOpCodeFailure::InvalidOperandValue);

@@ -8,16 +8,19 @@ pub struct VM
     register : [u16; 8],
     stack : Vec<u16>,
     program_counter : u16,
+    step_nb : u64,
     print_debug : bool
 }
 
 #[derive(Debug)]
 pub enum RunFailure
 {
+    Halt,
     NotImplemented(opcode::OpCode),
     OpCodeParseFailure(opcode::ReadOpCodeFailure),
     InvalidValue,
     CannotPopStackIsEmpty,
+    CannotReturnStackIsEmpty,
 }
 
 impl VM
@@ -30,6 +33,7 @@ impl VM
             register : [0; 8], 
             stack : vec!(),
             program_counter : 0,
+            step_nb : 0,
             print_debug : true,
         }
     }
@@ -47,25 +51,8 @@ impl VM
             },
             ParsedNumber::Register(r) =>
             {
-                Ok(self.register[r as usize])
-            }
-        }
-    }
-
-    fn get_memory_cell_from_address(&self, number : u16) -> 
-        Result<u16, RunFailure>
-    {
-        let actual_value = check_number(number);
-        match actual_value 
-        {
-            ParsedNumber::InvalidNumber => Err(RunFailure::InvalidValue),
-            ParsedNumber::LiteralValue(val) =>
-            {
-                Ok(self.memory[number as usize])
-            },
-            ParsedNumber::Register(r) =>
-            {
-                Ok(self.memory[self.register[r as usize] as usize])
+                let val = self.register[r as usize];
+                self.get_literal_value_or_register_value(val)
             }
         }
     }
@@ -82,9 +69,15 @@ impl VM
 
         if self.print_debug
         {
-            println!("current program counter 0x{}", format!("{:X}", self.program_counter * 2));
-            println!("current op code {:?}", op_code_result);
-            
+            println!("step {}", self.step_nb);
+
+            println!
+            (
+                "current program counter {} in bytes 0x{}",
+                self.program_counter, 
+                format!("{:X}", self.program_counter * 2)
+            );
+
             println!
             (   "[{}, {}, {}, {}, {}, {}, {}, {}]", 
                 self.register[0],
@@ -96,6 +89,18 @@ impl VM
                 self.register[6],
                 self.register[7],
             );
+
+            // println!
+            // (   "[{}, {}, {}, {}, {}, {}, {}, {}]", 
+            //     format!("0x{:X}", self.register[0]),
+            //     format!("0x{:X}", self.register[1]),
+            //     format!("0x{:X}", self.register[2]),
+            //     format!("0x{:X}", self.register[3]),
+            //     format!("0x{:X}", self.register[4]),
+            //     format!("0x{:X}", self.register[5]),
+            //     format!("0x{:X}", self.register[6]),
+            //     format!("0x{:X}", self.register[7]),
+            // );
 
             print!("[");
             let mut is_first = true;
@@ -112,11 +117,35 @@ impl VM
                 }
             }
             println!("]");
+
+            // print!("[");
+            // is_first = true;
+            // for val in &self.stack
+            // {
+            //     if !is_first
+            //     {
+            //         print!(", {}", format!("0x{:X}", val));
+            //     }
+            //     else
+            //     {
+            //         print!("{}", format!("0x{:X}", val));
+            //         is_first = false;
+            //     }
+            // }
+            // println!("]");
+
+            println!("current op code {:?}", op_code_result);
+
         }
         match op_code_result
         {
             Err(e) => Err(RunFailure::OpCodeParseFailure(e)),
-            Ok(op_code) => self.handle_op_code(op_code),
+            Ok(op_code) => 
+            {
+                let result = self.handle_op_code(op_code);
+                self.step_nb = self.step_nb + 1;
+                result
+            },
         }
     }
 
@@ -125,11 +154,12 @@ impl VM
     {
         if self.print_debug
         {
-            println!("{:?}", op_code);
+            //println!("{:?}", op_code);
             println!("");
         }
         match op_code
         {
+            OpCode::Halt => Err(RunFailure::Halt),
             OpCode::SetRegister(set_register) => self.handle_set_register(set_register),
             OpCode::Push(push) => self.handle_push(push),
             OpCode::Pop(pop) => self.handle_pop(pop),
@@ -145,11 +175,29 @@ impl VM
             OpCode::Or(or) => self.handle_or(or),
             OpCode::Not(not) => self.handle_not(not),
             OpCode::ReadMemory(read_memory) => self.handle_read_memory(read_memory),
+            OpCode::WriteMemory(write_memory) => self.handle_write_memory(write_memory),
             OpCode::Call(call) => self.handle_call(call),
+            OpCode::Return => self.handle_return(),
             OpCode::Out(out) => self.handle_out(out),
             OpCode::Noop => self.handle_noop(),
             _ => Err(RunFailure::NotImplemented(op_code)), 
         }
+    }
+
+    fn handle_set_register(&mut self, set_register : opcode::SetRegister) ->
+        Result<(), RunFailure>
+    {
+        let actual_value = check_number(set_register.register);
+        match actual_value
+        {
+            ParsedNumber::Register(r) =>
+            {
+                self.register[r as usize] = set_register.value;
+                self.program_counter = self.program_counter + 3;
+                Ok(())
+            },
+            _ => Err(RunFailure::InvalidValue)
+        } 
     }
 
     fn handle_push(&mut self, push : opcode::Push) -> Result<(), RunFailure>
@@ -225,22 +273,6 @@ impl VM
         Ok(())
     }
 
-    fn handle_set_register(&mut self, set_register : opcode::SetRegister) ->
-        Result<(), RunFailure>
-    {
-        let actual_value = check_number(set_register.register);
-        match actual_value
-        {
-            ParsedNumber::Register(r) =>
-            {
-                self.register[r as usize] = set_register.value;
-                self.program_counter = self.program_counter + 3;
-                Ok(())
-            },
-            _ => Err(RunFailure::InvalidValue)
-        } 
-    }
-
     fn handle_jump_not_zero(&mut self, jump_not_zero : opcode::JumpNotZero) -> 
         Result<(), RunFailure>
     {
@@ -276,6 +308,9 @@ impl VM
         let b = self.get_literal_value_or_register_value(add.first_operand)?;
         let c = self.get_literal_value_or_register_value(add.second_operand)?;
 
+        assert!(check_number(b).is_literal_value());
+        assert!(check_number(c).is_literal_value());
+
         let actual_value = check_number(add.cell_result);
         match actual_value
         {
@@ -293,6 +328,9 @@ impl VM
     {
         let b = self.get_literal_value_or_register_value(multiply.first_operand)? as u64;
         let c = self.get_literal_value_or_register_value(multiply.second_operand)? as u64;
+
+        assert!(check_number(b as u16).is_literal_value());
+        assert!(check_number(c as u16).is_literal_value());
 
         let actual_value = check_number(multiply.cell_result);
         match actual_value
@@ -312,6 +350,9 @@ impl VM
         let b = self.get_literal_value_or_register_value(modulo.first_operand)? as u64;
         let c = self.get_literal_value_or_register_value(modulo.second_operand)? as u64;
 
+        assert!(check_number(b as u16).is_literal_value());
+        assert!(check_number(c as u16).is_literal_value());
+
         let actual_value = check_number(modulo.cell_result);
         match actual_value
         {
@@ -329,6 +370,9 @@ impl VM
     {
         let b = self.get_literal_value_or_register_value(add.first_operand)?;
         let c = self.get_literal_value_or_register_value(add.second_operand)?;
+
+        assert!(check_number(b).is_literal_value());
+        assert!(check_number(c).is_literal_value());
 
         let actual_value = check_number(add.cell_result);
         match actual_value
@@ -348,6 +392,9 @@ impl VM
         let b = self.get_literal_value_or_register_value(or.first_operand)?;
         let c = self.get_literal_value_or_register_value(or.second_operand)?;
 
+        assert!(check_number(b).is_literal_value());
+        assert!(check_number(c).is_literal_value());
+
         let actual_value = check_number(or.cell_result);
         match actual_value
         {
@@ -365,6 +412,8 @@ impl VM
     {
         let val = self.get_literal_value_or_register_value(not.operand)?;
 
+        assert!(check_number(val).is_literal_value());
+
         let actual_value = check_number(not.cell_result);
         match actual_value
         {
@@ -381,13 +430,62 @@ impl VM
     fn handle_read_memory(&mut self, read_memory : opcode::ReadMemory) 
         -> Result<(), RunFailure>
     {
-        let mem_cell = self.get_memory_cell_from_address(read_memory.memory_address_to_read)?;
+        let mut mem_cell = check_number(read_memory.memory_address_to_read);
         let actual_value = check_number(read_memory.cell_result);
         match actual_value
         {
+            ParsedNumber::Register(r_dest) =>
+            {
+                match mem_cell
+                {
+                    ParsedNumber::Register(r) =>
+                    {
+                        let mem_address = self.register[r as usize];
+                        if !(check_number(mem_address).is_literal_value())
+                        {
+                            panic!("Error in read memory implementation");
+                        }
+                        let value = self.memory[mem_address as usize];
+                        self.register[r_dest as usize] = value;
+                        self.program_counter = self.program_counter + 3;
+                        Ok(())
+                    },
+                    ParsedNumber::LiteralValue(val) =>
+                    {
+                        self.register[r_dest as usize] = self.memory[val as usize] ;
+                        self.program_counter = self.program_counter + 3;
+                        Ok(())
+                    },
+                    _ => Err(RunFailure::InvalidValue) 
+
+                }
+            },
+            _ => Err(RunFailure::InvalidValue) 
+        }
+    }
+
+    fn handle_write_memory(&mut self, write_memory: opcode::WriteMemory)
+        -> Result<(), RunFailure>
+    {
+        let memory_address_to_write_to = check_number(write_memory.memory_address_to_write_to);
+        let value_to_write = self.get_literal_value_or_register_value(write_memory.value)?;
+        //print!("{}", (value_to_write as u8) as char);
+        match memory_address_to_write_to
+        {
             ParsedNumber::Register(r) =>
             {
-                self.register[r as usize] = mem_cell;
+                let mem_address = self.register[r as usize];
+                if !(check_number(mem_address).is_literal_value())
+                {
+                    panic!("Error in write memory implementation");
+                }
+                self.memory[mem_address as usize] = value_to_write;
+                self.program_counter = self.program_counter + 3;
+                Ok(())
+            },
+            ParsedNumber::LiteralValue(val) =>
+            {
+                self.memory[val as usize] = value_to_write ;
                 self.program_counter = self.program_counter + 3;
                 Ok(())
             },
@@ -401,6 +499,20 @@ impl VM
         let actual_value = self.get_literal_value_or_register_value(call.value)?;
         self.program_counter = actual_value;
         Ok(())
+    }
+
+    fn handle_return(&mut self) -> Result<(), RunFailure>
+    {
+        if self.stack.len() < 1
+        {
+            Err(RunFailure::CannotReturnStackIsEmpty)
+        }
+        else
+        {
+            let return_address = self.stack.pop().unwrap();
+            self.program_counter = return_address;
+            Ok(())
+        }
     }
 
     fn handle_out(&mut self, out : opcode::Out) -> Result<(), RunFailure>

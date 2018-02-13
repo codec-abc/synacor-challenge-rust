@@ -334,18 +334,18 @@ impl VM
 
     fn handle_add(&mut self, add : opcode::Add) -> Result<(), RunFailure>
     {
-        let b = self.get_literal_value_or_register_value(add.first_operand)?;
-        let c = self.get_literal_value_or_register_value(add.second_operand)?;
+        let b = self.get_literal_value_or_register_value(add.first_operand)? as u64;
+        let c = self.get_literal_value_or_register_value(add.second_operand)? as u64;
 
-        assert!(check_number(b).is_literal_value());
-        assert!(check_number(c).is_literal_value());
+        assert!(check_number(b as u16).is_literal_value());
+        assert!(check_number(c as u16).is_literal_value());
 
         let actual_value = check_number(add.cell_result);
         match actual_value
         {
             ParsedNumber::Register(r) =>
             {
-                let result = (b + c) % 32768; // overflow ?
+                let result = ((b + c) % 32768) as u16; // overflow ?
                 assert!(check_number(result).is_literal_value());
                 self.register[r as usize] = result;
                 self.program_counter = self.program_counter + 4;
@@ -368,7 +368,7 @@ impl VM
         {
             ParsedNumber::Register(r) =>
             {
-                let result = ((b * c) % 32768) as u16; // overflow ?;
+                let result = ((b * c) % 32768) as u16;
                 assert!(check_number(result).is_literal_value());
                 self.register[r as usize] = result;
                 self.program_counter = self.program_counter + 4;
@@ -391,7 +391,7 @@ impl VM
         {
             ParsedNumber::Register(r) =>
             {
-                let result = ((b % c) % 32768) as u16; // overflow ?
+                let result = ((b % c) % 32768) as u16;
                 assert!(check_number(result).is_literal_value());
                 self.register[r as usize] = result;
                 self.program_counter = self.program_counter + 4;
@@ -514,7 +514,6 @@ impl VM
         let memory_address_to_write_to = check_number(write_memory.memory_address_to_write_to);
         let value_to_write = self.get_literal_value_or_register_value(write_memory.value)?;
         assert!(check_number(value_to_write).is_literal_value());
-        //print!("{}", (value_to_write as u8) as char);
         match memory_address_to_write_to
         {
             ParsedNumber::Register(r) =>

@@ -168,25 +168,31 @@ pub enum ReadOpCodeFailure
     InvalidOperandValue
 }
 
-fn read_mem_as_u16_le(mem : &[u8], offset : u16) -> Option<u16>
+fn read_mem_as_u16_le(mem: &[u16], offset : u16) -> Option<u16>
 {
-    let low_byte_maybe = mem.get(offset as usize);
-    let high_byte_maybe = mem.get((offset + 1) as usize);
+    // let low_byte_maybe = mem.get(offset as usize);
+    // let high_byte_maybe = mem.get((offset + 1) as usize);
 
-    if low_byte_maybe.is_none() || high_byte_maybe.is_none()
-    {
-        None
-    }
-    else
-    {
-        let high_byte : u16 = *high_byte_maybe.unwrap() as u16;
-        let low_byte : u16 = *low_byte_maybe.unwrap() as u16;
+    // if low_byte_maybe.is_none() || high_byte_maybe.is_none()
+    // {
+    //     None
+    // }
+    // else
+    // {
+    //     let high_byte : u16 = *high_byte_maybe.unwrap() as u16;
+    //     let low_byte : u16 = *low_byte_maybe.unwrap() as u16;
         
-        Some(high_byte.rotate_left(8) + low_byte)
+    //     Some(high_byte.rotate_left(8) + low_byte)
+    // }
+
+    match mem.get(offset as usize) 
+    {
+        None => None,
+        Some(x) => Some(*x)
     }
 }
 
-pub fn read_memory_to_op_code(mem : &[u8], offset : u16) -> 
+pub fn read_memory_to_op_code(mem : &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
     let first_op_code_result = read_mem_as_u16_le(mem, offset);
@@ -233,11 +239,11 @@ pub fn read_memory_to_op_code(mem : &[u8], offset : u16) ->
     }  
 }
 
-fn handle_set_register_case(mem : &[u8], offset : u16) -> 
+fn handle_set_register_case(mem : &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let register_result = read_mem_as_u16_le(mem, (offset + 2));
-    let value_result = read_mem_as_u16_le(mem, (offset + 4));
+    let register_result = read_mem_as_u16_le(mem, (offset + 1));
+    let value_result = read_mem_as_u16_le(mem, (offset + 2));
     let mut is_ok = register_result.is_some() && value_result.is_some();
     if !is_ok
     {
@@ -257,10 +263,10 @@ fn handle_set_register_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::SetRegister(st))
 }
 
-fn handle_push_case(mem : &[u8], offset : u16) -> 
+fn handle_push_case(mem : &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let value_result = read_mem_as_u16_le(mem, (offset + 2));
+    let value_result = read_mem_as_u16_le(mem, (offset + 1));
     let mut is_ok = value_result.is_some();
     if !is_ok
     {
@@ -276,10 +282,10 @@ fn handle_push_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Push(push))
 }
 
-fn handle_pop_case(mem : &[u8], offset : u16) -> 
+fn handle_pop_case(mem : &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let value_result = read_mem_as_u16_le(mem, (offset + 2));
+    let value_result = read_mem_as_u16_le(mem, (offset + 1));
     let mut is_ok = value_result.is_some();
     if !is_ok
     {
@@ -295,12 +301,12 @@ fn handle_pop_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Pop(pop))
 }
 
-fn handle_is_equal_case(mem : &[u8], offset : u16) -> 
+fn handle_is_equal_case(mem : &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let cell_result = read_mem_as_u16_le(mem, (offset + 2));
-    let first_operand_result = read_mem_as_u16_le(mem, (offset + 4));
-    let second_operand_result = read_mem_as_u16_le(mem, (offset + 6));
+    let cell_result = read_mem_as_u16_le(mem, (offset + 1));
+    let first_operand_result = read_mem_as_u16_le(mem, (offset + 2));
+    let second_operand_result = read_mem_as_u16_le(mem, (offset + 3));
     let mut is_ok = 
         cell_result.is_some() && 
         first_operand_result.is_some() &&
@@ -332,12 +338,12 @@ fn handle_is_equal_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::IsEqual(is_equal))
 }
 
-fn handle_is_greater_case(mem : &[u8], offset : u16) -> 
+fn handle_is_greater_case(mem : &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let cell_result = read_mem_as_u16_le(mem, offset + 2);
-    let first_operand_result = read_mem_as_u16_le(mem, offset + 4);
-    let second_operand_result = read_mem_as_u16_le(mem, offset + 6);
+    let cell_result = read_mem_as_u16_le(mem, offset + 1);
+    let first_operand_result = read_mem_as_u16_le(mem, offset + 2);
+    let second_operand_result = read_mem_as_u16_le(mem, offset + 3);
     let mut is_ok = 
         cell_result.is_some() && 
         first_operand_result.is_some() &&
@@ -369,10 +375,10 @@ fn handle_is_greater_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::IsGreaterThan(is_greater))
 }
 
-fn handle_jump_case(mem : &[u8], offset : u16) -> 
+fn handle_jump_case(mem : &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let value_result = read_mem_as_u16_le(mem, offset + 2);
+    let value_result = read_mem_as_u16_le(mem, offset + 1);
     let mut is_ok = value_result.is_some();
     if !is_ok
     {
@@ -388,11 +394,11 @@ fn handle_jump_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Jump(jump))
 }
 
-fn handle_jump_not_zero_case(mem : &[u8], offset : u16) -> 
+fn handle_jump_not_zero_case(mem : &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let value_result = read_mem_as_u16_le(mem, offset + 2);
-    let jump_location_result = read_mem_as_u16_le(mem, offset + 4);
+    let value_result = read_mem_as_u16_le(mem, offset + 1);
+    let jump_location_result = read_mem_as_u16_le(mem, offset + 2);
     let mut is_ok = value_result.is_some() && jump_location_result.is_some();
     if !is_ok
     {
@@ -412,11 +418,11 @@ fn handle_jump_not_zero_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::JumpNotZero(jump_not_zero))
 }
 
-fn handle_jump_zero_case(mem : &[u8], offset : u16) -> 
+fn handle_jump_zero_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let value_result = read_mem_as_u16_le(mem, offset + 2);
-    let jump_location_result = read_mem_as_u16_le(mem, offset + 4);
+    let value_result = read_mem_as_u16_le(mem, offset + 1);
+    let jump_location_result = read_mem_as_u16_le(mem, offset + 2);
     let mut is_ok = value_result.is_some() && jump_location_result.is_some();
     if !is_ok
     {
@@ -436,12 +442,12 @@ fn handle_jump_zero_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::JumpZero(jump_zero))
 }
 
-fn handle_add_case(mem : &[u8], offset : u16) -> 
+fn handle_add_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let cell_result = read_mem_as_u16_le(mem, offset + 2);
-    let first_operand_result = read_mem_as_u16_le(mem, offset + 4);
-    let second_operand_result = read_mem_as_u16_le(mem, offset + 6);
+    let cell_result = read_mem_as_u16_le(mem, offset + 1);
+    let first_operand_result = read_mem_as_u16_le(mem, offset + 2);
+    let second_operand_result = read_mem_as_u16_le(mem, offset + 3);
     let mut is_ok = 
         cell_result.is_some() && 
         first_operand_result.is_some() &&
@@ -473,12 +479,12 @@ fn handle_add_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Add(add))
 }
 
-fn handle_multiply_case(mem : &[u8], offset : u16) -> 
+fn handle_multiply_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let cell_result = read_mem_as_u16_le(mem, offset + 2);
-    let first_operand_result = read_mem_as_u16_le(mem, offset + 4);
-    let second_operand_result = read_mem_as_u16_le(mem, offset + 6);
+    let cell_result = read_mem_as_u16_le(mem, offset + 1);
+    let first_operand_result = read_mem_as_u16_le(mem, offset + 2);
+    let second_operand_result = read_mem_as_u16_le(mem, offset + 3);
     let mut is_ok = 
         cell_result.is_some() && 
         first_operand_result.is_some() &&
@@ -510,12 +516,12 @@ fn handle_multiply_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Multiply(mult))
 }
 
-fn handle_modulo_case(mem : &[u8], offset : u16) -> 
+fn handle_modulo_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let cell_result = read_mem_as_u16_le(mem, offset + 2);
-    let first_operand_result = read_mem_as_u16_le(mem, offset + 4);
-    let second_operand_result = read_mem_as_u16_le(mem, offset + 6);
+    let cell_result = read_mem_as_u16_le(mem, offset + 1);
+    let first_operand_result = read_mem_as_u16_le(mem, offset + 2);
+    let second_operand_result = read_mem_as_u16_le(mem, offset + 3);
     let mut is_ok = 
         cell_result.is_some() && 
         first_operand_result.is_some() &&
@@ -547,12 +553,12 @@ fn handle_modulo_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Modulo(modulo))
 }
 
-fn handle_and_case(mem : &[u8], offset : u16) -> 
+fn handle_and_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let cell_result = read_mem_as_u16_le(mem, offset + 2);
-    let first_operand_result = read_mem_as_u16_le(mem, offset + 4);
-    let second_operand_result = read_mem_as_u16_le(mem, offset + 6);
+    let cell_result = read_mem_as_u16_le(mem, offset + 1);
+    let first_operand_result = read_mem_as_u16_le(mem, offset + 2);
+    let second_operand_result = read_mem_as_u16_le(mem, offset + 3);
     let mut is_ok = 
         cell_result.is_some() && 
         first_operand_result.is_some() &&
@@ -584,12 +590,12 @@ fn handle_and_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::And(and))
 }
 
-fn handle_or_case(mem : &[u8], offset : u16) -> 
+fn handle_or_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let cell_result = read_mem_as_u16_le(mem, offset + 2);
-    let first_operand_result = read_mem_as_u16_le(mem, offset + 4);
-    let second_operand_result = read_mem_as_u16_le(mem, offset + 6);
+    let cell_result = read_mem_as_u16_le(mem, offset + 1);
+    let first_operand_result = read_mem_as_u16_le(mem, offset + 2);
+    let second_operand_result = read_mem_as_u16_le(mem, offset + 3);
     let mut is_ok = 
         cell_result.is_some() && 
         first_operand_result.is_some() &&
@@ -621,11 +627,11 @@ fn handle_or_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Or(or))
 }
 
-fn handle_not_case(mem : &[u8], offset : u16) -> 
+fn handle_not_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let cell_result = read_mem_as_u16_le(mem, offset + 2);
-    let operand_result = read_mem_as_u16_le(mem, offset + 4);
+    let cell_result = read_mem_as_u16_le(mem, offset + 1);
+    let operand_result = read_mem_as_u16_le(mem, offset + 2);
     let mut is_ok = 
         cell_result.is_some() && 
         operand_result.is_some();
@@ -653,11 +659,11 @@ fn handle_not_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Not(not))
 }
 
-fn handle_read_memory_case(mem : &[u8], offset : u16) -> 
+fn handle_read_memory_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let cell_result = read_mem_as_u16_le(mem, offset + 2);
-    let memory_address_to_read_result = read_mem_as_u16_le(mem, offset + 4);
+    let cell_result = read_mem_as_u16_le(mem, offset + 1);
+    let memory_address_to_read_result = read_mem_as_u16_le(mem, offset + 2);
     
     let mut is_ok = 
         cell_result.is_some() &&
@@ -672,8 +678,8 @@ fn handle_read_memory_case(mem : &[u8], offset : u16) ->
     let memory_address_to_read = memory_address_to_read_result.unwrap();
 
     is_ok = 
-        check_number(cell).is_valid_number() &&
-        check_number(memory_address_to_read).is_literal_value();
+        check_number(cell).is_register() &&
+        check_number(memory_address_to_read).is_valid_number();
         
     if !is_ok
     {
@@ -688,11 +694,11 @@ fn handle_read_memory_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::ReadMemory(read_memory))
 }
 
-fn handle_write_memory_case(mem : &[u8], offset : u16) -> 
+fn handle_write_memory_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let memory_address_to_write_to_result = read_mem_as_u16_le(mem, offset + 2);
-    let value_result = read_mem_as_u16_le(mem, offset + 4);
+    let memory_address_to_write_to_result = read_mem_as_u16_le(mem, offset + 1);
+    let value_result = read_mem_as_u16_le(mem, offset + 2);
     
     let mut is_ok = 
         value_result.is_some() &&
@@ -708,7 +714,7 @@ fn handle_write_memory_case(mem : &[u8], offset : u16) ->
 
     is_ok = 
         check_number(value).is_valid_number() &&
-        check_number(memory_address_to_write_to).is_literal_value();
+        check_number(memory_address_to_write_to).is_valid_number();
         
     if !is_ok
     {
@@ -723,17 +729,17 @@ fn handle_write_memory_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::WriteMemory(write_memory))
 }
 
-fn handle_call_case(mem : &[u8], offset : u16) -> 
+fn handle_call_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let value_result = read_mem_as_u16_le(mem, offset + 2);
+    let value_result = read_mem_as_u16_le(mem, offset + 1);
     let mut is_ok = value_result.is_some();
     if !is_ok
     {
         return Err(ReadOpCodeFailure::NotEnoughMemory);
     }
     let value = value_result.unwrap();
-    is_ok = check_number(value).is_literal_value();
+    is_ok = check_number(value).is_valid_number();
     if !is_ok
     {
         return Err(ReadOpCodeFailure::InvalidOperandValue);
@@ -742,10 +748,10 @@ fn handle_call_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Call(call))
 }
 
-fn handle_out_case(mem : &[u8], offset : u16) -> 
+fn handle_out_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let value_result = read_mem_as_u16_le(mem, offset + 2);
+    let value_result = read_mem_as_u16_le(mem, offset + 1);
     let mut is_ok = value_result.is_some();
     if !is_ok
     {
@@ -761,10 +767,10 @@ fn handle_out_case(mem : &[u8], offset : u16) ->
     Ok(OpCode::Out(out))
 }
 
-fn handle_in_case(mem : &[u8], offset : u16) -> 
+fn handle_in_case(mem: &[u16], offset : u16) -> 
     Result<OpCode, ReadOpCodeFailure>
 {
-    let value_result = read_mem_as_u16_le(mem, offset + 2);
+    let value_result = read_mem_as_u16_le(mem, offset + 1);
     let mut is_ok = value_result.is_some();
     if !is_ok
     {
@@ -831,7 +837,7 @@ impl ParsedNumber
 
 pub fn check_number(number: u16) -> ParsedNumber
 {
-    if number < 32767u16
+    if number <= 32767u16
     {
         ParsedNumber::LiteralValue(number)
     }

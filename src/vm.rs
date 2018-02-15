@@ -1,7 +1,11 @@
+extern crate chrono;
 use opcode;
 use opcode::*;
 use std::result::Result;
 use std::io;
+use std::fs;
+use std::io::Write;                                                                                                                                                             
+use std::fs::File; 
 
 pub struct VM
 {
@@ -18,7 +22,6 @@ pub struct VM
 pub enum RunFailure
 {
     Halt,
-    NotImplemented(opcode::OpCode),
     OpCodeParseFailure(opcode::ReadOpCodeFailure),
     InvalidValue,
     InvalidInput,
@@ -169,7 +172,6 @@ impl VM
             OpCode::Out(out) => self.handle_out(out),
             OpCode::In(in_arg) => self.handle_in(in_arg),
             OpCode::Noop => self.handle_noop(),
-            _ => Err(RunFailure::NotImplemented(op_code)), 
         }
     }
 
@@ -446,7 +448,7 @@ impl VM
     fn handle_read_memory(&mut self, read_memory : opcode::ReadMemory) 
         -> Result<(), RunFailure>
     {
-        let mut mem_cell = check_number(read_memory.memory_address_to_read);
+        let mem_cell = check_number(read_memory.memory_address_to_read);
         let actual_value = check_number(read_memory.cell_result);
         match actual_value
         {
@@ -488,6 +490,7 @@ impl VM
     {
         let memory_address_to_write_to = check_number(write_memory.memory_address_to_write_to);
         let value_to_write = self.get_literal_value_or_register_value(write_memory.value)?;
+        //print!("{}", (value_to_write as u8) as char);
         assert!(check_number(value_to_write).is_literal_value());
         match memory_address_to_write_to
         {
@@ -562,6 +565,12 @@ impl VM
                 .ok()
                 .expect("Failed to read line");
 
+            if line.contains("dump")
+            {
+                self.dump_state();
+                return self.handle_in(in_arg);
+            }
+
             let str_as_bytes : &[u8] = line.as_bytes();
             let mut cpy = Vec::new();
 
@@ -596,5 +605,88 @@ impl VM
     {
         self.program_counter = self.program_counter + 1;
         Ok(())
+    }
+
+    fn dump_state(&mut self)
+    {
+        println!("============");
+        self.print_debug();
+        println!("============");
+        let dt = chrono::Local::now();
+        let dt_str = dt.format("%Y-%m-%d--%H-%M-%S").to_string();
+        let dir = "dump/".to_owned() + &dt_str + "/";
+        println!("{}", dir);
+        let result = fs::create_dir_all(&dir);
+        match result
+        {
+            Err(e) => println!("cannot dump machine {}", e),
+            Ok(_) =>
+            {
+                {
+                    let mut f = File::create(dir.clone() + "registers.txt");
+                    match f
+                    {
+                        Ok(mut file) =>
+                        {
+                            for reg in self.register.iter()
+                            {
+                                file.write_all(format!("{}\n", reg).as_bytes()).unwrap();
+                            }
+                        },
+                        Err(_) => (),
+                    }
+                }
+                {
+                    let mut f = File::create(dir.clone() + "stack.txt");
+                    match f
+                    {
+                        Ok(mut file) =>
+                        {
+                            for stack_value in self.stack.iter()
+                            {
+                                file.write_all(format!("{}\n", stack_value).as_bytes()).unwrap();
+                            }
+                        },
+                        Err(_) => (),
+                    }
+                }
+                {
+                    let mut f = File::create(dir.clone() + "program_counter.txt");
+                    match f
+                    {
+                        Ok(mut file) =>
+                        {
+                            file.write_all(format!("{}\n", self.program_counter).as_bytes()).unwrap();
+                        },
+                        Err(_) => (),
+                    }
+                }
+                {
+                    let mut f = File::create(dir.clone() + "step_number.txt");
+                    match f
+                    {
+                        Ok(mut file) =>
+                        {
+                            file.write_all(format!("{}\n", self.step_nb).as_bytes()).unwrap();
+                        },
+                        Err(_) => (),
+                    }
+                }
+                {
+                    let mut f = File::create(dir.clone() + "memory.txt");
+                    match f
+                    {
+                        Ok(mut file) =>
+                        {
+                            for mem_value in self.memory.iter()
+                            {
+                                file.write_all(format!("{}\n", mem_value).as_bytes()).unwrap();
+                            }
+                        },
+                        Err(_) => (),
+                    }
+                }
+            },
+        }
     }
 }

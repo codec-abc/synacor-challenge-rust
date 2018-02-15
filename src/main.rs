@@ -4,7 +4,6 @@ mod vm;
 use std::fs::File;
 use std::io::Read;
 use std::io::Cursor;
-use std::io;
 extern crate byteorder;
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -26,7 +25,6 @@ fn main()
                     let mut vm = vm::VM::new(mem);
                     let mut result = vm.step();
                     let mut should_continue = true;
-                    let mut input = String::new();
 
                     while should_continue && !result.is_err()
                     {

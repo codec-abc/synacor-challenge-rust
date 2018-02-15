@@ -1,6 +1,7 @@
 use opcode;
 use opcode::*;
 use std::result::Result;
+use std::io;
 
 pub struct VM
 {
@@ -8,6 +9,7 @@ pub struct VM
     register : [u16; 8],
     stack : Vec<u16>,
     program_counter : u16,
+    pending_char : Vec<u8>,
     step_nb : u64,
     print_debug : bool
 }
@@ -19,13 +21,14 @@ pub enum RunFailure
     NotImplemented(opcode::OpCode),
     OpCodeParseFailure(opcode::ReadOpCodeFailure),
     InvalidValue,
+    InvalidInput,
     CannotPopStackIsEmpty,
     CannotReturnStackIsEmpty,
 }
 
 impl VM
 {
-    fn print_debug(&self, op_code_result : &Result<opcode::OpCode, opcode::ReadOpCodeFailure>)
+    fn print_debug(&self)
     {
         println!("step {}", self.step_nb);
 
@@ -63,8 +66,6 @@ impl VM
             }
         }
         println!("]");
-
-        println!("current op code {:?}", op_code_result);
     }
 
     pub fn new (memory_ : Vec<u16>) -> VM
@@ -75,6 +76,7 @@ impl VM
             register : [0; 8], 
             stack : vec!(),
             program_counter : 0,
+            pending_char : vec!(),
             step_nb : 0,
             print_debug : false,
         }
@@ -111,12 +113,12 @@ impl VM
 
         if self.print_debug
         {
-            self.print_debug(&op_code_result);
+            self.print_debug();
         }
 
         match op_code_result
         {
-            Err(_) => self.print_debug(&op_code_result),
+            Err(_) => println!("current op code {:?}", op_code_result),
             Ok(_) => (),
         }
 
@@ -165,6 +167,7 @@ impl VM
             OpCode::Call(call) => self.handle_call(call),
             OpCode::Return => self.handle_return(),
             OpCode::Out(out) => self.handle_out(out),
+            OpCode::In(in_arg) => self.handle_in(in_arg),
             OpCode::Noop => self.handle_noop(),
             _ => Err(RunFailure::NotImplemented(op_code)), 
         }
@@ -539,11 +542,54 @@ impl VM
 
     fn handle_out(&mut self, out : opcode::Out) -> Result<(), RunFailure>
     {
-        self.program_counter = self.program_counter + 2;
         let actual_value = self.get_literal_value_or_register_value(out.value)?;
         assert!(check_number(actual_value).is_literal_value());
         print!("{}", (actual_value as u8) as char);
+        self.program_counter = self.program_counter + 2;
         Ok(())
+    }
+
+    fn handle_in(&mut self, in_arg : opcode::In) -> Result<(), RunFailure>
+    {
+        let actual_value = check_number(in_arg.value);
+
+        if self.pending_char.len() == 0
+        {
+            let mut line = String::new();
+
+            io::stdin()
+                .read_line(&mut line)
+                .ok()
+                .expect("Failed to read line");
+
+            let str_as_bytes : &[u8] = line.as_bytes();
+            let mut cpy = Vec::new();
+
+            cpy.extend_from_slice(str_as_bytes);
+            cpy.retain(|&i| i <= 126 && i != 13);
+            cpy.reverse();
+
+            self.pending_char = cpy;
+        }
+
+        match actual_value
+        {
+            ParsedNumber::Register(r) =>
+            {
+                if self.pending_char.len() >= 1
+                {
+                    let byte = self.pending_char.pop().unwrap();
+                    self.register[r as usize] = byte as u16;
+                    self.program_counter = self.program_counter + 2;
+                    Ok(())
+                }
+                else
+                {
+                    Err(RunFailure::InvalidInput)
+                }
+            },
+            _ => Err(RunFailure::InvalidValue),
+        }
     }
 
     fn handle_noop(&mut self) -> Result<(), RunFailure>

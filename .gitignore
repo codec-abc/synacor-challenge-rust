@@ -2,5 +2,4 @@
 /target/
 **/*.rs.bk
 !arch-spec.txt
-*.txt
 dump/
